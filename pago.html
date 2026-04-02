@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CardNET — Activar servicio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: #075E54;
+      padding: 24px 24px 20px;
+      text-align: center;
+      color: #fff;
+    }
+    .logo     { font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+    .subtitle { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+    .amount-pill {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border-radius: 40px;
+      padding: 8px 24px;
+      margin-top: 12px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .amount-pill small { font-size: 14px; font-weight: 400; opacity: 0.8; }
+
+    .card-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Tarjeta visual */
+    .credit-card {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      border-radius: 12px;
+      padding: 18px;
+      color: #fff;
+      height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: box-shadow 0.4s;
+    }
+    .credit-card.declined { box-shadow: 0 0 0 3px #c62828; }
+    .cc-top  { display: flex; justify-content: space-between; align-items: center; }
+    .cc-chip { width: 32px; height: 22px; background: linear-gradient(135deg, #d4af37, #f5d060); border-radius: 4px; }
+    .cc-brand {
+      font-size: 18px; font-weight: 700; letter-spacing: 1px;
+      background: linear-gradient(135deg, #f5d060, #d4af37);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .cc-number { font-size: 16px; letter-spacing: 3px; font-family: monospace; opacity: 0.9; }
+    .cc-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+    .cc-label  { font-size: 9px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+    .cc-value  { font-size: 13px; font-weight: 500; }
+
+    /* Formulario */
+    .form-group  { display: flex; flex-direction: column; gap: 4px; }
+    .form-label  { font-size: 12px; color: #555; }
+    .form-input {
+      padding: 10px 12px;
+      border: 1.5px solid #d0d5dd;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #111;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      width: 100%;
+      background: #fff;
+    }
+    .form-input:focus  { outline: none; border-color: #075E54; box-shadow: 0 0 0 3px rgba(7,94,84,0.1); }
+    .form-input.correcto  { border-color: #2e7d32; background: #f6fbf6; }
+    .form-input.incorrecto { border-color: #c62828; background: #fff8f8; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+
+    /* Hint con datos correctos */
+    .hint-box {
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #2e7d32;
+      line-height: 1.8;
+    }
+    .hint-title { font-weight: 700; font-size: 12px; margin-bottom: 4px; color: #1b5e20; }
+    .hint-row   { display: flex; justify-content: space-between; }
+    .hint-key   { opacity: 0.75; }
+    .hint-val   { font-family: monospace; font-weight: 600; letter-spacing: 0.5px; }
+
+    .secure-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: #2e7d32;
+      background: #e8f5e9; border-radius: 6px; padding: 6px 10px;
+    }
+    .secure-dot { width: 6px; height: 6px; border-radius: 50%; background: #2e7d32; flex-shrink: 0; }
+
+    .pay-btn {
+      background: #075E54; color: #fff;
+      border: none; border-radius: 8px;
+      padding: 14px; font-size: 15px; font-weight: 600;
+      cursor: pointer; width: 100%;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .pay-btn:hover:not(:disabled) { background: #064a43; }
+    .pay-btn:active:not(:disabled) { transform: scale(0.99); }
+    .pay-btn:disabled { background: #9e9e9e; cursor: not-allowed; }
+
+    /* Overlay */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .overlay.visible { display: flex; }
+    .loader-box {
+      background: #fff; border-radius: 16px; padding: 32px 40px;
+      text-align: center; max-width: 300px; width: 90%;
+    }
+    .spinner {
+      width: 40px; height: 40px; margin: 0 auto 12px;
+      border: 3px solid #eee; border-top-color: #075E54;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    .spinner.red { border-top-color: #c62828; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-title  { font-weight: 600; font-size: 15px; color: #111; }
+    .loader-steps  { margin-top: 12px; font-size: 12px; color: #666; text-align: left; }
+    .loader-step   { padding: 3px 0; }
+    .loader-step.done   { color: #2e7d32; }
+    .loader-step.failed { color: #c62828; font-weight: 600; }
+    .loader-step.active { color: #075E54; font-weight: 600; }
+
+    /* Resultado */
+    .result-screen {
+      display: none; flex-direction: column; align-items: center;
+      gap: 16px; padding: 32px 24px; text-align: center;
+    }
+    .result-screen.visible { display: flex; }
+    .result-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .result-icon.ok   { background: #e8f5e9; }
+    .result-icon.fail { background: #ffebee; }
+    .result-title { font-size: 20px; font-weight: 700; }
+    .result-title.ok   { color: #2e7d32; }
+    .result-title.fail { color: #c62828; }
+    .result-desc { font-size: 13px; color: #555; line-height: 1.6; max-width: 300px; }
+
+    .receipt {
+      width: 100%; background: #f9fafb; border-radius: 10px;
+      padding: 14px 16px; font-size: 13px; text-align: left;
+    }
+    .receipt-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+    .receipt-row:last-child { border-bottom: none; }
+    .receipt-label { color: #777; }
+    .receipt-value { font-weight: 600; color: #111; }
+    .receipt-value.ok   { color: #2e7d32; }
+    .receipt-value.fail { color: #c62828; }
+
+    .wa-confirm {
+      width: 100%; background: #e8f5e9;
+      border-left: 3px solid #25D366; border-radius: 6px;
+      padding: 10px 14px; font-size: 12px; color: #1a1a1a; line-height: 1.6; text-align: left;
+    }
+    .wa-fail {
+      width: 100%; background: #ffebee;
+      border-left: 3px solid #c62828; border-radius: 6px;
+      padding: 10px 14px; font-size: 12px; color: #1a1a1a; line-height: 1.6; text-align: left;
+    }
+    .wa-label { font-size: 10px; color: #888; margin-bottom: 4px; }
+
+    .btn-reiniciar {
+      background: transparent; color: #075E54;
+      border: 2px solid #075E54; border-radius: 8px;
+      padding: 12px 24px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn-reiniciar:hover { background: #f0f9f7; }
+  </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="loader-box">
+    <div class="spinner" id="spinnerEl"></div>
+    <div class="loader-title">Procesando pago...</div>
+    <div class="loader-steps" id="loaderSteps"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="logo">CARDNET</div>
+    <div class="subtitle">Portal seguro de activación</div>
+    <div class="amount-pill"><small>RD$ </small>500.00</div>
+  </div>
+
+  <!-- Formulario -->
+  <div class="card-body" id="formSection">
+
+    <div class="credit-card" id="creditCardEl">
+      <div class="cc-top">
+        <div class="cc-chip"></div>
+        <div class="cc-brand" id="ccBrand">VISA</div>
+      </div>
+      <div class="cc-number" id="ccNumber">4242 4242 4242 4242</div>
+      <div class="cc-bottom">
+        <div>
+          <div class="cc-label">Titular</div>
+          <div class="cc-value" id="ccName">JUAN PÉREZ</div>
+        </div>
+        <div>
+          <div class="cc-label">Vence</div>
+          <div class="cc-value" id="ccExp">12/26</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hint con los datos correctos -->
+    <div class="hint-box">
+      <div class="hint-title">Datos de prueba — usa estos para aprobar el pago</div>
+      <div class="hint-row"><span class="hint-key">Número</span><span class="hint-val">4242 4242 4242 4242</span></div>
+      <div class="hint-row"><span class="hint-key">Vencimiento</span><span class="hint-val">12/26</span></div>
+      <div class="hint-row"><span class="hint-key">CVV</span><span class="hint-val">123</span></div>
+      <div class="hint-row"><span class="hint-key">Titular</span><span class="hint-val">JUAN PÉREZ</span></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Número de tarjeta</label>
+      <input class="form-input" id="numTarjeta" type="text" maxlength="19"
+             placeholder="4242 4242 4242 4242" oninput="formatNumero(this)" onblur="validarCampo(this)" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Vencimiento</label>
+        <input class="form-input" id="vencimiento" type="text" maxlength="5"
+               placeholder="MM/AA" oninput="formatFecha(this)" onblur="validarCampo(this)" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">CVV</label>
+        <input class="form-input" id="cvv" type="password" maxlength="3"
+               placeholder="•••" onblur="validarCampo(this)" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre del titular</label>
+      <input class="form-input" id="nombreTitular" type="text"
+             placeholder="JUAN PÉREZ" oninput="actualizarNombre(this)" onblur="validarCampo(this)" />
+    </div>
+
+    <div class="secure-badge">
+      <div class="secure-dot"></div>
+      Simulación segura · Modifica cualquier dato para simular fallo
+    </div>
+
+    <button class="pay-btn" id="btnPagar" onclick="realizarPago()">
+      Pagar RD$500.00
+    </button>
+  </div>
+
+  <!-- Resultado -->
+  <div class="result-screen" id="resultSection">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-desc"  id="resultDesc"></div>
+    <div class="receipt" id="receiptBox"></div>
+    <div id="waBox"></div>
+    <button class="btn-reiniciar" onclick="reiniciar()">Intentar de nuevo</button>
+  </div>
+</div>
+
+<script>
+  // ── Datos correctos establecidos para la simulación ───────────────────────
+  const DATOS_CORRECTOS = {
+    numero:      '4242424242424242',   // sin espacios para comparar
+    vencimiento: '12/26',
+    cvv:         '123',
+    nombre:      'JUAN PÉREZ',
+  };
+
+  // ── Config desde la URL generada por PAU ─────────────────────────────────
+  const params      = new URLSearchParams(window.location.search);
+  const CONECTOR_ID = params.get('conector_id') || '19';
+  const NOMBRE      = params.get('nombre')      || 'Cliente';
+  const MODALIDAD   = params.get('modalidad')   || 'Enlace de Pago';
+  const PAU_URL     = 'https://TU_SUBDOMINIO.pau.zone'; // ← reemplaza
+  const PAU_TOKEN   = params.get('token')       || 'TU_TOKEN_PAU';
+
+  // ── Formateo tarjeta visual ───────────────────────────────────────────────
+  function formatNumero(input) {
+    let v = input.value.replace(/\D/g, '').slice(0, 16);
+    input.value = v.replace(/(.{4})/g, '$1 ').trim();
+    document.getElementById('ccNumber').textContent =
+      v.padEnd(16, '•').replace(/(.{4})/g, '$1 ').trim();
+    document.getElementById('ccBrand').textContent =
+      v.startsWith('4') ? 'VISA' : v.startsWith('5') ? 'MASTERCARD' :
+      v.startsWith('3') ? 'AMEX' : 'CARD';
+  }
+
+  function formatFecha(input) {
+    let v = input.value.replace(/\D/g, '').slice(0, 4);
+    if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+    input.value = v;
+    document.getElementById('ccExp').textContent = v || 'MM/AA';
+  }
+
+  function actualizarNombre(input) {
+    input.value = input.value.toUpperCase();
+    document.getElementById('ccName').textContent = input.value || 'NOMBRE APELLIDO';
+  }
+
+  // ── Validación visual campo a campo al salir ──────────────────────────────
+  function validarCampo(input) {
+    const id  = input.id;
+    const val = input.value.trim();
+
+    if (!val) { input.className = 'form-input'; return; }
+
+    let correcto = false;
+    if (id === 'numTarjeta')    correcto = val.replace(/\s/g,'') === DATOS_CORRECTOS.numero;
+    if (id === 'vencimiento')   correcto = val === DATOS_CORRECTOS.vencimiento;
+    if (id === 'cvv')           correcto = val === DATOS_CORRECTOS.cvv;
+    if (id === 'nombreTitular') correcto = val.toUpperCase() === DATOS_CORRECTOS.nombre;
+
+    input.className = 'form-input ' + (correcto ? 'correcto' : 'incorrecto');
+
+    // Actualizar borde tarjeta si el número cambia
+    if (id === 'numTarjeta') {
+      document.getElementById('creditCardEl')
+        .classList.toggle('declined', !correcto && val.length > 0);
+    }
+  }
+
+  // ── Lógica principal de pago ──────────────────────────────────────────────
+  async function realizarPago() {
+    const num    = document.getElementById('numTarjeta').value.replace(/\s/g, '');
+    const fecha  = document.getElementById('vencimiento').value.trim();
+    const cvv    = document.getElementById('cvv').value.trim();
+    const nombre = document.getElementById('nombreTitular').value.trim().toUpperCase();
+
+    if (!num || !fecha || !cvv || !nombre) {
+      alert('Por favor completa todos los datos de la tarjeta.');
+      return;
+    }
+
+    // Comparar contra los datos correctos establecidos
+    const esExito =
+      num    === DATOS_CORRECTOS.numero      &&
+      fecha  === DATOS_CORRECTOS.vencimiento &&
+      cvv    === DATOS_CORRECTOS.cvv         &&
+      nombre === DATOS_CORRECTOS.nombre;
+
+    if (esExito) {
+      mostrarLoader([
+        'Validando datos de la tarjeta...',
+        'Procesando con el banco...',
+        'Activando cuenta CardNET...',
+        'Enviando confirmación por WhatsApp...',
+      ], false);
+    } else {
+      mostrarLoader([
+        'Validando datos de la tarjeta...',
+        'Procesando con el banco...',
+        'Tarjeta rechazada por el banco...',
+      ], true);
+    }
+
+    await esperar(esExito ? 3200 : 2000);
+
+    const ref      = generarReferencia();
+    const fechaPago = new Date().toLocaleString('es-DO', { dateStyle: 'medium', timeStyle: 'short' });
+
+    await notificarPAU(ref, fechaPago, esExito);
+    ocultarLoader();
+
+    if (esExito) {
+      mostrarExito(ref, fechaPago);
+    } else {
+      mostrarFallo(ref, fechaPago);
+    }
+  }
+
+  // ── Llamada directa a PAU ─────────────────────────────────────────────────
+  async function notificarPAU(ref, fecha, esExito) {
+    const mensaje = esExito
+      ? `✅ *¡Pago Confirmado, ${NOMBRE}!*\n\n` +
+        `Tu *${MODALIDAD}* de CardNET ha sido activado exitosamente.\n\n` +
+        `📋 *Detalles:*\n` +
+        `• Monto: RD$500.00\n` +
+        `• Referencia: #CN-${ref}\n` +
+        `• Fecha: ${fecha}\n\n` +
+        `Descarga la app y empieza a cobrar donde estés. 📲\n` +
+        `¡Gracias por elegir *CardNET*! 👋`
+
+      : `❌ *Pago no procesado, ${NOMBRE}*\n\n` +
+        `No pudimos completar tu pago de *RD$500.00*.\n\n` +
+        `Motivo: Tarjeta rechazada por el banco.\n` +
+        `🔁 Intenta con otra tarjeta o contáctanos.\n\n` +
+        `Un representante CardNET te contactará pronto. 📞`;
+
+    try {
+      await fetch(`${PAU_URL}/api10/notificacion-set`, {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'token':        PAU_TOKEN,
+        },
+        body: new URLSearchParams({
+          conector_id: CONECTOR_ID,
+          tipo:        '1',
+          texto:       mensaje,
+          urgencia:    '0',
+        }).toString(),
+      });
+    } catch (err) {
+      console.warn('PAU no disponible:', err);
+    }
+  }
+
+  // ── Pantallas de resultado ────────────────────────────────────────────────
+  function mostrarExito(ref, fecha) {
+    document.getElementById('formSection').style.display = 'none';
+    document.getElementById('resultSection').classList.add('visible');
+    document.getElementById('resultIcon').className     = 'result-icon ok';
+    document.getElementById('resultIcon').innerHTML     = iconCheck('#2e7d32');
+    document.getElementById('resultTitle').textContent  = '¡Pago exitoso!';
+    document.getElementById('resultTitle').className    = 'result-title ok';
+    document.getElementById('resultDesc').textContent   =
+      'Tu cuenta ha sido activada. Revisa tu WhatsApp para ver la confirmación.';
+
+    document.getElementById('receiptBox').innerHTML = `
+      <div class="receipt-row"><span class="receipt-label">Estado</span><span class="receipt-value ok">Aprobado</span></div>
+      <div class="receipt-row"><span class="receipt-label">Concepto</span><span class="receipt-value">Activación ${MODALIDAD}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Monto</span><span class="receipt-value">RD$500.00</span></div>
+      <div class="receipt-row"><span class="receipt-label">Referencia</span><span class="receipt-value">#CN-${ref}</span></div>
+      <div class="receipt-row"><span class="receipt-label">Fecha</span><span class="receipt-value">${fecha}</span></div>
+    `;
+
+    document.getElementById('waBox').innerHTML = `
+      <div class="wa-label">Mensaje enviado a tu WhatsApp</div>
+      <div class="wa-confirm">
+        ✅ <strong>¡Pago Confirmado, ${NOMBRE}!</strong><br><br>
+        Tu <strong>${MODALIDAD}</strong> de CardNET ha sido activado.<br>
+        Referencia: <strong>#CN-${ref}</strong> · Monto: <strong>RD$500.00</strong><br><br>
+        Descarga la app y empieza a cobrar. 📲<br>
+        ¡Gracias por elegir <strong>CardNET</strong>! 👋
+      </div>
+    `;
+  }
+
+  function mostrarFallo(ref, fecha) {
+    document.getElementById('formSection').style.display = 'none';
+    document.getElementById('resultSection').classList.add('visible');
+    document.getElementById('resultIcon').className     = 'result-icon fail';
+    document.getElementById('resultIcon').innerHTML     = iconX('#c62828');
+    document.getElementById('resultTitle').textContent  = 'Pago rechazado';
+    document.getElementById('resultTitle').className    = 'result-title fail';
+    document.getElementById('resultDesc').textContent   =
+      'Tu banco no autorizó la transacción. Verifica los datos e intenta de nuevo.';
+
+    document.getElementById('receiptBox').innerHTML = `
+      <div class="receipt-row"><span class="receipt-label">Estado</span><span class="receipt-value fail">Rechazado</span></div>
+      <div class="receipt-row"><span class="receipt-label">Motivo</span><span class="receipt-value">Datos de tarjeta incorrectos</span></div>
+      <div class="receipt-row"><span class="receipt-label">Monto intentado</span><span class="receipt-value">RD$500.00</span></div>
+      <div class="receipt-row"><span class="receipt-label">Fecha</span><span class="receipt-value">${fecha}</span></div>
+    `;
+
+    document.getElementById('waBox').innerHTML = `
+      <div class="wa-label">Mensaje enviado a tu WhatsApp</div>
+      <div class="wa-fail">
+        ❌ <strong>Pago no procesado, ${NOMBRE}</strong><br><br>
+        No pudimos completar tu pago de <strong>RD$500.00</strong>.<br>
+        Motivo: <strong>Tarjeta rechazada por el banco.</strong><br><br>
+        Un representante CardNET te contactará pronto. 📞
+      </div>
+    `;
+  }
+
+  function reiniciar() {
+    document.getElementById('formSection').style.display = '';
+    document.getElementById('resultSection').classList.remove('visible');
+    ['numTarjeta','vencimiento','cvv','nombreTitular'].forEach(id => {
+      const el = document.getElementById(id);
+      el.value = '';
+      el.className = 'form-input';
+    });
+    document.getElementById('ccNumber').textContent = '4242 4242 4242 4242';
+    document.getElementById('ccName').textContent   = 'JUAN PÉREZ';
+    document.getElementById('ccExp').textContent    = '12/26';
+    document.getElementById('btnPagar').disabled    = false;
+    document.getElementById('creditCardEl').classList.remove('declined');
+  }
+
+  // ── Loader ────────────────────────────────────────────────────────────────
+  let loaderInterval;
+  function mostrarLoader(pasos, esFallo) {
+    document.getElementById('overlay').classList.add('visible');
+    document.getElementById('btnPagar').disabled = true;
+    document.getElementById('spinnerEl').className = esFallo ? 'spinner red' : 'spinner';
+    let i = 0;
+    document.getElementById('loaderSteps').innerHTML =
+      pasos.map((p, idx) =>
+        `<div class="loader-step ${idx === 0 ? 'active' : ''}" id="ls${idx}">${p}</div>`
+      ).join('');
+    loaderInterval = setInterval(() => {
+      if (i < pasos.length - 1) {
+        document.getElementById('ls' + i).className = 'loader-step done';
+        i++;
+        const ultimo = esFallo && i === pasos.length - 1;
+        document.getElementById('ls' + i).className = 'loader-step ' + (ultimo ? 'failed' : 'active');
+      }
+    }, esFallo ? 700 : 800);
+  }
+
+  function ocultarLoader() {
+    clearInterval(loaderInterval);
+    document.getElementById('overlay').classList.remove('visible');
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function generarReferencia() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+  function esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function iconCheck(c) {
+    return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${c}"
+      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline></svg>`;
+  }
+  function iconX(c) {
+    return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${c}"
+      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+  }
+</script>
+</body>
+</html>
